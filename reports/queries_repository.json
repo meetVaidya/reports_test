@@ -1,0 +1,53 @@
+{
+  "queries": [
+    {
+      "description": "Calculate the number of bills modified and the total difference in amount for each user who modified bills.",
+      "query": "WITH BillChanges AS ( SELECT modified_by, bill_no, (amount_from - amount_to) AS amount_difference FROM table WHERE modified_by IS NOT NULL ) SELECT modified_by, COUNT(DISTINCT bill_no) AS Number_Of_Bills_Modified, SUM(amount_difference) AS Total_Difference_In_Amount FROM BillChanges GROUP BY modified_by;"
+    },
+    {
+      "description": "Identify staff responsible for discounts where customer details are missing or invalid.",
+      "query": "SELECT CASE WHEN REGEXP_CONTAINS(Assign_To, r'nan') OR Assign_To = '' THEN 'Multiple' ELSE Assign_To END AS Staff FROM SALES_MASTERDATA WHERE Discount > 0.0 AND (Name IS NULL OR Phone IS NULL OR Name = 'nan') GROUP BY Staff;"
+    },
+    {
+      "description": "Find the top 10 items with the longest average preparation time.",
+      "query": "SELECT Item_Name_k, AVG(Preparation_Time_Taken_Mins_k) AS Preparation_Time_Taken_Mins_k FROM kot_order_dump GROUP BY Item_Name_k ORDER BY Preparation_Time_Taken_Mins_k DESC LIMIT 10;"
+    },
+    {
+      "description": "Detect duplicate orders by grouping purchase data and identifying entries with more than one occurrence.",
+      "query": "SELECT Invoice_Date, Raw_Material, Customer AS Vendor, SUM(Quantity) AS Total_Qty, SUM(Total_Amount) AS Total_Amount, COUNT() AS Entry_Count FROM purchase_dump GROUP BY Invoice_Date, Raw_Material, Customer HAVING COUNT() > 1 ORDER BY Invoice_Date, Raw_Material, Vendor;"
+    },
+    {
+      "description": "Checking if any sudden drop in sales occurred in the last 30 days.",
+      "query": "WITH MonthlySales AS ( SELECT FORMAT_DATE('%Y-%m', Date) AS month, SUM(Final_Total) AS total_sales FROM audit-anomalynew GROUP BY month ORDER BY month ), SalesDrops AS ( SELECT month, total_sales, LAG(total_sales) OVER (ORDER BY month) AS previous_month_sales FROM MonthlySales ) SELECT month, total_sales, previous_month_sales, ((previous_month_sales - total_sales) / previous_month_sales) * 100 AS drop_percentage FROM SalesDrops WHERE previous_month_sales IS NOT NULL AND ((previous_month_sales - total_sales) / previous_month_sales) * 100 >= 10;"
+    },
+    {
+      "description": "zomato rider delay by 16 minutes",
+      "query": "SELECT Order_ID_z, TIMESTAMP_DIFF(Delivered_Time_z, Accepted_Time_z, MINUTE) AS Delay_Minutes, Rider_Arrival_Time_z FROM audit-anomalynew WHERE Order_Status_z = 'Delivered' AND TIMESTAMP_DIFF(Delivered_Time_z, Accepted_Time_z, MINUTE) > 30 ORDER BY Delay_Minutes DESC LIMIT 10;"
+    },
+
+    {
+      "description": "Determine how many unique bills were altered and compute the aggregate amount variance introduced by each editor.",
+      "query": "WITH ModifiedBills AS ( SELECT modified_by AS user_id, bill_no AS bill_reference, amount_from - amount_to AS delta_amount FROM table WHERE modified_by IS NOT NULL ) SELECT user_id, COUNT(DISTINCT bill_reference) AS edited_bills_count, SUM(delta_amount) AS total_amount_variation FROM ModifiedBills GROUP BY user_id;"
+    },
+    {
+      "description": "Extract employees linked to discount transactions where customer identity appears to be invalid or missing.",
+      "query": "SELECT IF(Assign_To = '' OR Assign_To LIKE '%nan%', 'Multiple', Assign_To) AS Handler FROM SALES_MASTERDATA WHERE Discount > 0 AND (Name IS NULL OR Name = 'nan' OR Phone IS NULL) GROUP BY Handler;"
+    },
+    {
+      "description": "Get the top 10 dishes that have the highest average cooking time.",
+      "query": "SELECT Item_Name_k AS Dish_Name, AVG(Preparation_Time_Taken_Mins_k) AS Avg_Cook_Time FROM kot_order_dump GROUP BY Dish_Name ORDER BY Avg_Cook_Time DESC LIMIT 10;"
+    },
+    {
+      "description": "Identify duplicate entries in purchase logs based on matching date, material, and supplier, appearing multiple times.",
+      "query": "SELECT Invoice_Date AS Purchase_Date, Raw_Material AS Material, Customer AS Supplier, SUM(Quantity) AS Combined_Quantity, SUM(Total_Amount) AS Combined_Cost, COUNT() AS Repeated_Entries FROM purchase_dump GROUP BY Purchase_Date, Material, Supplier HAVING COUNT() > 1 ORDER BY Purchase_Date, Material, Supplier;"
+    },
+    {
+      "description": "Identify months where sales dipped by 10% or more compared to the previous month within the last 30-day window.",
+      "query": "WITH MonthlyFigures AS ( SELECT FORMAT_DATE('%Y-%m', Date) AS report_month, SUM(Final_Total) AS revenue FROM audit-anomalynew GROUP BY report_month ORDER BY report_month ), DropAnalyzer AS ( SELECT report_month, revenue AS current_revenue, LAG(revenue) OVER (ORDER BY report_month) AS prior_revenue FROM MonthlyFigures ) SELECT report_month, current_revenue, prior_revenue, ROUND(100 * (prior_revenue - current_revenue) / prior_revenue, 2) AS drop_rate FROM DropAnalyzer WHERE prior_revenue IS NOT NULL AND (prior_revenue - current_revenue) / prior_revenue >= 0.10;"
+    },
+    {
+      "description": "Report top 10 Zomato deliveries delayed by over 30 minutes, including a notable 16-minute late case.",
+      "query": "SELECT Order_ID_z AS OrderID, TIMESTAMP_DIFF(Delivered_Time_z, Accepted_Time_z, MINUTE) AS Minutes_Delayed, Rider_Arrival_Time_z FROM audit-anomalynew WHERE Order_Status_z = 'Delivered' AND TIMESTAMP_DIFF(Delivered_Time_z, Accepted_Time_z, MINUTE) > 30 ORDER BY Minutes_Delayed DESC LIMIT 10;"
+    }
+  ]
+}
